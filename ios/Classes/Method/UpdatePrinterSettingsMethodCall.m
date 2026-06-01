@@ -116,12 +116,38 @@ static NSString * METHOD_NAME = @"updatePrinterSettings";
     return [@"Brother " stringByAppendingString:normalized];
 }
 
+// Pulls the PrinterSettingItem id (1..44, matching the PSI_* enum raw values
+// in BRPtouchPrinter.h) out of whatever shape the Flutter codec produced for
+// the settings-map key. The Dart side encodes each key as
+// {"id": <int>, "name": <string>}, so we expect an NSDictionary, but we also
+// handle NSNumber/NSString for forward compatibility / robustness.
++ (NSNumber *)settingIdFromRawKey:(id)rawKey {
+    if ([rawKey isKindOfClass:[NSDictionary class]]) {
+        id idValue = [(NSDictionary *)rawKey objectForKey:@"id"];
+        if ([idValue isKindOfClass:[NSNumber class]]) {
+            return (NSNumber *)idValue;
+        }
+        if ([idValue isKindOfClass:[NSString class]]) {
+            return @([(NSString *)idValue integerValue]);
+        }
+    } else if ([rawKey isKindOfClass:[NSNumber class]]) {
+        return (NSNumber *)rawKey;
+    } else if ([rawKey isKindOfClass:[NSString class]]) {
+        return @([(NSString *)rawKey integerValue]);
+    }
+    return nil;
+}
+
 - (void)execute {
     dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0ul);
     dispatch_async(queue, ^{
 
         NSDictionary<NSString *, NSObject *> * dartPrintInfo = self->_call.arguments[@"printInfo"];
         NSDictionary * dartSettings = self->_call.arguments[@"settings"];
+
+        NSLog(@"[another_brother][updatePrinterSettings] Raw arguments: %@", self->_call.arguments);
+        NSLog(@"[another_brother][updatePrinterSettings] Raw settings dict (count=%lu): %@",
+              (unsigned long)[dartSettings count], dartSettings);
 
         NSDictionary<NSString *, NSObject*> * dartPort = (NSDictionary<NSString *, NSObject*> *)[dartPrintInfo objectForKey:@"port"];
         BRLMChannelType channelType = [BrotherUtils portFromMapWithValue:dartPort];
@@ -135,15 +161,25 @@ static NSString * METHOD_NAME = @"updatePrinterSettings";
         NSString * brotherPrinterName = [UpdatePrinterSettingsMethodCall brotherPrinterNameFromDartModelName:dartModelName];
 
         CONNECTION_TYPE connectionType;
+        NSString * connectionDescription;
         if (channelType == BRLMChannelTypeWiFi) {
             connectionType = CONNECTION_TYPE_WLAN;
+            connectionDescription = @"WLAN";
         } else if (channelType == BRLMChannelTypeBluetoothMFi) {
             connectionType = CONNECTION_TYPE_BLUETOOTH;
+            connectionDescription = @"BLUETOOTH (MFi)";
         } else if (channelType == BRLMChannelTypeBluetoothLowEnergy) {
             connectionType = CONNECTION_TYPE_BLE;
+            connectionDescription = @"BLE";
         } else {
             connectionType = CONNECTION_TYPE_WLAN;
+            connectionDescription = @"WLAN (fallback)";
         }
+
+        NSLog(@"[another_brother][updatePrinterSettings] Dart model name: '%@' -> Brother SDK printer name: '%@'",
+              dartModelName, brotherPrinterName);
+        NSLog(@"[another_brother][updatePrinterSettings] Connection: %@ | ipAddress='%@' macAddress='%@' localName='%@'",
+              connectionDescription, ipAddress, macAddress, localName);
 
         BRPtouchPrinter * printer = [[BRPtouchPrinter alloc] initWithPrinterName:brotherPrinterName interface:connectionType];
 
@@ -159,17 +195,39 @@ static NSString * METHOD_NAME = @"updatePrinterSettings";
         // PrinterSettingItem enum raw values wrapped in NSNumber, values are
         // strings.
         NSMutableDictionary<NSNumber *, NSString *> * iosSettings = [NSMutableDictionary dictionaryWithCapacity:[dartSettings count]];
+        NSUInteger skippedEntries = 0;
         for (id rawKey in dartSettings) {
-            NSString * value = [dartSettings objectForKey:rawKey];
-            if (![rawKey isKindOfClass:[NSDictionary class]] || ![value isKindOfClass:[NSString class]]) {
+            id rawValue = [dartSettings objectForKey:rawKey];
+
+            NSNumber * settingId = [UpdatePrinterSettingsMethodCall settingIdFromRawKey:rawKey];
+            NSString * value = nil;
+            if ([rawValue isKindOfClass:[NSString class]]) {
+                value = (NSString *)rawValue;
+            } else if ([rawValue isKindOfClass:[NSNumber class]]) {
+                value = [(NSNumber *)rawValue stringValue];
+            }
+
+            if (settingId == nil || value == nil) {
+                NSLog(@"[another_brother][updatePrinterSettings] Skipping entry rawKey=%@ (class=%@) rawValue=%@ (class=%@)",
+                      rawKey, NSStringFromClass([rawKey class]),
+                      rawValue, NSStringFromClass([rawValue class]));
+                skippedEntries += 1;
                 continue;
             }
-            NSDictionary<NSString *, NSObject *> * keyMap = (NSDictionary<NSString *, NSObject *> *)rawKey;
-            NSNumber * settingId = (NSNumber *)[keyMap objectForKey:@"id"];
-            if (settingId == nil) {
-                continue;
-            }
+
             [iosSettings setObject:value forKey:settingId];
+        }
+
+        NSLog(@"[another_brother][updatePrinterSettings] Built iOS settings dict (count=%lu, skipped=%lu): %@",
+              (unsigned long)[iosSettings count], (unsigned long)skippedEntries, iosSettings);
+
+        if ([iosSettings count] == 0) {
+            NSLog(@"[another_brother][updatePrinterSettings] No valid settings to apply, returning ERROR_INVALID_PARAMETER without calling the SDK.");
+            NSDictionary<NSString *, NSObject *> * status = [UpdatePrinterSettingsMethodCall printerStatusMapWithErrorName:@"ERROR_INVALID_PARAMETER"];
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                self->_result(status);
+            });
+            return;
         }
 
         // setPrinterSettings: manages its own connection internally and uses
@@ -178,9 +236,14 @@ static NSString * METHOD_NAME = @"updatePrinterSettings";
         // raster-print mode first, which then interprets the configuration
         // bytes as malformed print data and triggers a
         // "Communication cmd error" on the device.
+        NSLog(@"[another_brother][updatePrinterSettings] Calling [BRPtouchPrinter setPrinterSettings:] with %lu entries...",
+              (unsigned long)[iosSettings count]);
         int settingResult = [printer setPrinterSettings:iosSettings];
 
         NSString * errorName = [UpdatePrinterSettingsMethodCall errorNameForLegacyCode:settingResult];
+        NSLog(@"[another_brother][updatePrinterSettings] setPrinterSettings: returned %d -> %@",
+              settingResult, errorName);
+
         NSDictionary<NSString *, NSObject *> * status = [UpdatePrinterSettingsMethodCall printerStatusMapWithErrorName:errorName];
 
         dispatch_sync(dispatch_get_main_queue(), ^{
