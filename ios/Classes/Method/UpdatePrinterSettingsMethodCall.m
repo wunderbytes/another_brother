@@ -172,20 +172,13 @@ static NSString * METHOD_NAME = @"updatePrinterSettings";
             [iosSettings setObject:value forKey:settingId];
         }
 
-        // Open communication. BRPtouchPrinter requires this to be called
-        // before setPrinterSettings:.
-        BOOL connOpened = [printer startCommunication];
-        if (!connOpened) {
-            NSDictionary<NSString *, NSObject *> * status = [UpdatePrinterSettingsMethodCall printerStatusMapWithErrorName:@"ERROR_COMMUNICATION_ERROR"];
-            dispatch_sync(dispatch_get_main_queue(), ^{
-                self->_result(status);
-            });
-            return;
-        }
-
+        // setPrinterSettings: manages its own connection internally and uses
+        // the Brother management/configuration protocol. Wrapping it in an
+        // explicit startCommunication/endCommunication puts the printer in
+        // raster-print mode first, which then interprets the configuration
+        // bytes as malformed print data and triggers a
+        // "Communication cmd error" on the device.
         int settingResult = [printer setPrinterSettings:iosSettings];
-
-        [printer endCommunication];
 
         NSString * errorName = [UpdatePrinterSettingsMethodCall errorNameForLegacyCode:settingResult];
         NSDictionary<NSString *, NSObject *> * status = [UpdatePrinterSettingsMethodCall printerStatusMapWithErrorName:errorName];
