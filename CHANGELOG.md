@@ -151,4 +151,4 @@
 - Adds 16KB support for Android. Special thanks to swapnilparmar-git for the change.
 
 ## 2.2.5
-- Adds iOS support for `updatePrinterSettings`, mirroring the existing Android implementation.
+- Adds iOS support for `updatePrinterSettings` and `getPrinterSettings`, mirroring the existing Android implementations. Uses the legacy `BRPtouchPrinter` API since `BRLMPrinterDriver` does not expose these operations.
