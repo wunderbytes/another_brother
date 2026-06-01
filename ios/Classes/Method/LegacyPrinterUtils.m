@@ -139,20 +139,31 @@
 }
 
 + (NSNumber *)settingIdFromRawKey:(id)rawKey {
+    NSNumber * raw = nil;
     if ([rawKey isKindOfClass:[NSDictionary class]]) {
         id idValue = [(NSDictionary *)rawKey objectForKey:@"id"];
         if ([idValue isKindOfClass:[NSNumber class]]) {
-            return (NSNumber *)idValue;
-        }
-        if ([idValue isKindOfClass:[NSString class]]) {
-            return @([(NSString *)idValue integerValue]);
+            raw = (NSNumber *)idValue;
+        } else if ([idValue isKindOfClass:[NSString class]]) {
+            raw = @([(NSString *)idValue integerValue]);
         }
     } else if ([rawKey isKindOfClass:[NSNumber class]]) {
-        return (NSNumber *)rawKey;
+        raw = (NSNumber *)rawKey;
     } else if ([rawKey isKindOfClass:[NSString class]]) {
-        return @([(NSString *)rawKey integerValue]);
+        raw = @([(NSString *)rawKey integerValue]);
     }
-    return nil;
+
+    if (raw == nil) {
+        return nil;
+    }
+
+    // The Brother iOS SDK's PrinterSettingItem enum is declared as
+    // NS_ENUM(NSUInteger, ...). Some legacy BRPtouchPrinter call sites validate
+    // the objCType of the boxed number strictly, so we re-box every value as
+    // an NSUInteger-typed NSNumber. The Flutter codec hands us int-typed
+    // NSNumbers (objCType=='q'), which can be rejected as invalid parameters
+    // by getPrinterSettings:require:.
+    return [NSNumber numberWithUnsignedInteger:[raw unsignedIntegerValue]];
 }
 
 + (NSDictionary<NSString *, NSObject *> *)printerSettingItemMapForId:(NSNumber *)settingId {

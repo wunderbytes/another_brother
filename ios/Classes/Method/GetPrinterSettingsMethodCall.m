@@ -40,7 +40,7 @@ static NSString * METHOD_NAME = @"getPrinterSettings";
 
         // Build the require array expected by getPrinterSettings:require:.
         // Each element must be NSNumber wrapping the PrinterSettingItem raw
-        // value.
+        // value (NSUInteger-typed - settingIdFromRawKey: normalizes that).
         NSMutableArray<NSNumber *> * requireKeys = [NSMutableArray arrayWithCapacity:[dartKeys count]];
         for (id rawKey in dartKeys) {
             NSNumber * settingId = [LegacyPrinterUtils settingIdFromRawKey:rawKey];
@@ -52,8 +52,13 @@ static NSString * METHOD_NAME = @"getPrinterSettings";
             [requireKeys addObject:settingId];
         }
 
+        NSMutableString * keyDiagnostic = [NSMutableString string];
+        for (NSNumber * key in requireKeys) {
+            const char * type = [key objCType];
+            [keyDiagnostic appendFormat:@"%@(%s) ", key, type];
+        }
         NSLog(@"[another_brother][getPrinterSettings] Built require array (count=%lu): %@",
-              (unsigned long)[requireKeys count], requireKeys);
+              (unsigned long)[requireKeys count], keyDiagnostic);
 
         if ([requireKeys count] == 0) {
             NSLog(@"[another_brother][getPrinterSettings] No valid keys requested, returning ERROR_INVALID_PARAMETER without calling the SDK.");
@@ -85,8 +90,17 @@ static NSString * METHOD_NAME = @"getPrinterSettings";
 
         NSLog(@"[another_brother][getPrinterSettings] Calling [BRPtouchPrinter getPrinterSettings:require:] with %lu keys...",
               (unsigned long)[requireKeys count]);
-        NSDictionary * sdkResult = nil;
-        int getResult = [printer getPrinterSettings:&sdkResult require:requireKeys];
+        // The Brother SDK header declares the out parameter as
+        // (NSDictionary**), but some SDK versions require it to be
+        // pre-allocated as a mutable dictionary the SDK fills in. Passing nil
+        // can yield ERROR_INVALID_PARAMETER (-48). Hand it an empty mutable
+        // dictionary instead. The __autoreleasing qualifier matches the ARC
+        // convention for write-back parameters.
+        NSDictionary * __autoreleasing sdkResult = [NSMutableDictionary dictionary];
+        // Defensive copy of the require array in case the SDK is picky about
+        // mutability of inputs.
+        NSArray<NSNumber *> * requireImmutable = [requireKeys copy];
+        int getResult = [printer getPrinterSettings:&sdkResult require:requireImmutable];
 
         [printer endCommunication];
 
