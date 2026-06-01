@@ -17,6 +17,8 @@
 #import "Method/PrintPdfFileMethodCall.h"
 #import "Method/CancelMethodCall.h"
 #import "Method/GetPrinterStatusMethodCall.h"
+#import "Method/UpdatePrinterSettingsMethodCall.h"
+#import "Method/GetPrinterSettingsMethodCall.h"
 #import "Method/GetNetPrintersMethodCall.h"
 #import "Method/GetBluetoothPrintersMethodCall.h"
 #import "Method/StartCommunicationMethodCall.h"
@@ -82,6 +84,12 @@
   }
   else if ([[GetPrinterStatusMethodCall METHOD_NAME] isEqualToString:call.method]) {
       [[[GetPrinterStatusMethodCall alloc] initWithCall:call result:result] execute];
+  }
+  else if ([[UpdatePrinterSettingsMethodCall METHOD_NAME] isEqualToString:call.method]) {
+      [[[UpdatePrinterSettingsMethodCall alloc] initWithCall:call result:result] execute];
+  }
+  else if ([[GetPrinterSettingsMethodCall METHOD_NAME] isEqualToString:call.method]) {
+      [[[GetPrinterSettingsMethodCall alloc] initWithCall:call result:result] execute];
   }
   else if ([[GetNetPrintersMethodCall METHOD_NAME] isEqualToString:call.method]){
       //[[[GetNetPrintersMethodCall alloc] initWithCall:call result:result] execute];
