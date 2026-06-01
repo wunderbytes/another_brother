@@ -2277,6 +2277,62 @@ static NSObject<FlutterPluginRegistrar>* _registrarFlutter;
     return dartPrintStatus;
 }
 
++ (NSDictionary<NSString *,NSObject *> *)printerSettingItemToMapWithId:(NSNumber *)settingId {
+
+    // Maps the PrinterSettingItem enum value to the name used by the Dart
+    // PrinterSettingItem so it can be resolved via valueFromName on decoding.
+    NSString * name = @"UNSUPPORTED";
+    switch ([settingId integerValue]) {
+        case PSI_NET_BOOTMODE: name = @"NET_BOOTMODE"; break;
+        case PSI_NET_INTERFACE: name = @"NET_INTERFACE"; break;
+        case PSI_NET_USED_IPV6: name = @"NET_USED_IPV6"; break;
+        case PSI_NET_PRIORITY_IPV6: name = @"NET_PRIORITY_IPV6"; break;
+        case PSI_NET_IPV4_BOOTMETHOD: name = @"NET_IPV4_BOOTMETHOD"; break;
+        case PSI_NET_STATIC_IPV4ADDRESS: name = @"NET_STATIC_IPV4ADDRESS"; break;
+        case PSI_NET_SUBNETMASK: name = @"NET_SUBNETMASK"; break;
+        case PSI_NET_GATEWAY: name = @"NET_GATEWAY"; break;
+        case PSI_NET_DNS_IPV4_BOOTMETHOD: name = @"NET_DNS_IPV4_BOOTMETHOD"; break;
+        case PSI_NET_PRIMARY_DNS_IPV4ADDRESS: name = @"NET_PRIMARY_DNS_IPV4ADDRESS"; break;
+        case PSI_NET_SECOND_DNS_IPV4ADDRESS: name = @"NET_SECOND_DNS_IPV4ADDRESS"; break;
+        case PSI_NET_IPV6_BOOTMETHOD: name = @"NET_IPV6_BOOTMETHOD"; break;
+        case PSI_NET_STATIC_IPV6ADDRESS: name = @"NET_STATIC_IPV6ADDRESS"; break;
+        case PSI_NET_PRIMARY_DNS_IPV6ADDRESS: name = @"NET_PRIMARY_DNS_IPV6ADDRESS"; break;
+        case PSI_NET_SECOND_DNS_IPV6ADDRESS: name = @"NET_SECOND_DNS_IPV6ADDRESS"; break;
+        case PSI_NET_IPV6ADDRESS_LIST: name = @"NET_IPV6ADDRESS_LIST"; break;
+        case PSI_NET_COMMUNICATION_MODE: name = @"NET_COMMUNICATION_MODE"; break;
+        case PSI_NET_SSID: name = @"NET_SSID"; break;
+        case PSI_NET_CHANNEL: name = @"NET_CHANNEL"; break;
+        case PSI_NET_AUTHENTICATION_METHOD: name = @"NET_AUTHENTICATION_METHOD"; break;
+        case PSI_NET_ENCRYPTIONMODE: name = @"NET_ENCRYPTIONMODE"; break;
+        case PSI_NET_WEPKEY: name = @"NET_WEPKEY"; break;
+        case PSI_NET_PASSPHRASE: name = @"NET_PASSPHRASE"; break;
+        case PSI_NET_USER_ID: name = @"NET_USER_ID"; break;
+        case PSI_NET_PASSWORD: name = @"NET_PASSWORD"; break;
+        case PSI_NET_NODENAME: name = @"NET_NODENAME"; break;
+        case PSI_WIRELESSDIRECT_KEY_CREATE_MODE: name = @"WIRELESSDIRECT_KEY_CREATE_MODE"; break;
+        case PSI_WIRELESSDIRECT_SSID: name = @"WIRELESSDIRECT_SSID"; break;
+        case PSI_WIRELESSDIRECT_NETWORK_KEY: name = @"WIRELESSDIRECT_NETWORK_KEY"; break;
+        case PSI_BT_ISDISCOVERABLE: name = @"BT_ISDISCOVERABLE"; break;
+        case PSI_BT_DEVICENAME: name = @"BT_DEVICENAME"; break;
+        case PSI_BT_BOOTMODE: name = @"BT_BOOTMODE"; break;
+        case PSI_PRINTER_POWEROFFTIME: name = @"PRINTER_POWEROFFTIME"; break;
+        case PSI_PRINTER_POWEROFFTIME_BATTERY: name = @"PRINTER_POWEROFFTIME_BATTERY"; break;
+        case PSI_PRINT_JPEG_HALFTONE: name = @"PRINT_JPEG_HALFTONE"; break;
+        case PSI_PRINT_JPEG_SCALE: name = @"PRINT_JPEG_SCALE"; break;
+        case PSI_PRINT_DENSITY: name = @"PRINT_DENSITY"; break;
+        case PSI_PRINT_SPEED: name = @"PRINT_SPEED"; break;
+        case PSI_BT_AUTO_CONNECTION: name = @"BT_AUTO_CONNECTION"; break;
+        default: name = @"UNSUPPORTED"; break;
+    }
+
+    NSDictionary<NSString *, NSObject *> * dartSettingItem = @{
+        @"id": settingId,
+        @"name": name
+    };
+
+    return dartSettingItem;
+}
+
 + (NSDictionary<NSString *, NSObject *> *) labelInfoStatuesToMapWithStatus:(BRPtouchLabelInfoStatus *) status{
     
     // TODO Continue implementation after color type is added

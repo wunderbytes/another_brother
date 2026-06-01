@@ -96,6 +96,8 @@
 
 + (NSDictionary<NSString *, NSObject *> *) errorCodeToMapWithId:(NSNumber* )errorId;
 
++ (NSDictionary<NSString *, NSObject *> *) printerSettingItemToMapWithId:(NSNumber *)settingId;
+
 + (NSDictionary<NSString *, NSObject *> *) printerStatusToMapWithError:(BRLMPrintErrorCode)error status:(BRLMPrinterStatus *) status;
 
 + (NSDictionary<NSString *, NSObject *> *) labelInfoStatuesToMapWithStatus:(BRPtouchLabelInfoStatus *) status;
